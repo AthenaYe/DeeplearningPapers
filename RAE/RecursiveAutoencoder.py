@@ -6,19 +6,18 @@ import numpy as np
 
 class RecursiveAutoencoder(object):
 
-    def __init__(self, n_input, n_hidden, transfer_function=tf.nn.softplus, optimizer=tf.train.AdamOptimizer()):
-		'''\
+    def __init__(self, n_input, transfer_function=tf.nn.softplus, optimizer=tf.train.AdamOptimizer()):
+        '''\
         Initialization
 
         Args:
             n_input: wordvector size * 2
             n_hidden: hidden unit size
             transer_function: ?
-		'''
+        '''
         self.n_input = n_input
-        self.n_hidden = n_hidden
+        self.n_hidden = n_input / 2
         self.transfer = transfer_function
-
         network_weights = self._initialize_weights()
         self.weights = network_weights
 
@@ -26,17 +25,16 @@ class RecursiveAutoencoder(object):
         self.x1 = tf.placeholder(tf.float32, [None, self.n_input / 2])
         self.x2 = tf.placeholder(tf.float32, [None, self.n_input / 2])
         self.x3 = tf.placeholder(tf.float32, [None, self.n_input / 2])
-        self.y1 = self.transfer(tf.add(tf.matmul(tf.concat(1, [self.x2, self.x3]),
-                                                 self.weights['w1']), self.weights['b1']))
-        self.y2 = self.transfer(tf.add(tf.matmul(tf.concat(1, [self.x1, self.y1]),
-                                                 self.weights['w1']), self.weights['b1']))
-        self.x1prime, self.y1prime = tf.split(1, self.n_input/2,
-                                              tf.add(tf.matmul(self.y2, self.weights['w2']), self.weights['b2'])
-        self.x2prime, self.x3prime = tf.split(1, self.n_input/2, self.y1prime)
+        self.y1 = tf.add(tf.matmul(tf.concat(1, [self.x2, self.x3]), self.weights['w1']), self.weights['b1'])
+        self.y2 = tf.add(tf.matmul(tf.concat(1, [self.x1, self.y1]), self.weights['w1']), self.weights['b1'])
+        self.x1prime, self.y1prime = tf.split(1, 2,
+                                              tf.add(tf.matmul(self.y2, self.weights['w2']), self.weights['b2']))
+        self.x2prime, self.x3prime = tf.split(1, 2,
+                                              tf.add(tf.matmul(self.y1prime, self.weights['w2']), self.weights['b2']))
 
         # cost
         self.cost = 0.5 * tf.reduce_sum(tf.pow(tf.sub(tf.concat(1, [self.x1, self.x2, self.x3]),
-                                                      tf.concat(1, [self.x1prime, self.x2prime, self.x3prime]), 2.0)))
+                                                      tf.concat(1, [self.x1prime, self.x2prime, self.x3prime])), 2.0))
         self.optimizer = optimizer.minimize(self.cost)
 
         init = tf.initialize_all_variables()
@@ -75,5 +73,8 @@ class RecursiveAutoencoder(object):
 #
 #    def getBiases(self):
 #        return self.sess.run(self.weights['b1'])
+
+if __name__ == '__main__':
+    rae = RecursiveAutoencoder(100,200)
 
 # vim: ts=4 sw=4 sts=4 expandtab

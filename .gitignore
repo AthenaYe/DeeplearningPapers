@@ -1,3 +1,10 @@
+# sefl-defined files
+test_data.txt
+*cpkt
+*meta
+checkpoint
+.idea
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

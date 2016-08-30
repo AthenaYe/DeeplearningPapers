@@ -22,7 +22,7 @@ class RecursiveAutoencoder(object):
         self.weights = network_weights
 
         # model
-        self.word_embedding_dict = tf.Variable(tf.random_uniform([vocab_size, embed_size], -1.0, 1.0) ,name="dictionary")
+        self.word_embedding_dict = tf.Variable(tf.random_uniform([vocab_size+10, embed_size], -1.0, 1.0) ,name="dictionary")
         self.x1_index = tf.placeholder(tf.int32, [None])
         self.x2_index = tf.placeholder(tf.int32, [None])
         self.x3_index = tf.placeholder(tf.int32, [None])

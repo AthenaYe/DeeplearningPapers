@@ -22,7 +22,11 @@ x2 = []
 x3 = []
 
 see_dict, _ = model.ret_dict()
+line_count = 0
 for lines in f:
+    line_count += 1
+    if line_count % 5000 == 0:
+        print line_count
     token = lines.decode('utf-8').encode('utf-8').split(' ')
     if len(token) <= 2:
         continue
@@ -45,7 +49,7 @@ for lines in f:
 
 see_dict, _ = model.ret_dict()
 
-saver = tf.train.Saver()
-save_path = saver.save(model.sess, "model.ckpt")
+utils.save_dictionary(see_dict, word_index_map, config.embedding_size)
+utils.save_model_parameter(model)
 
 # vim: ts=4 sw=4 sts=4 expandtab

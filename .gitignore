@@ -4,6 +4,8 @@ test_data.txt
 *meta
 checkpoint
 .idea
+*.bin
+*.ori
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

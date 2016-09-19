@@ -1,0 +1,10 @@
+embedding_size = 200
+hidden_size = 150
+batch_size = 128
+pre_train = False
+trainable = False
+max_sentence_len = 60
+classes = 2
+chinese = True
+fold_cut = 2795
+link = 'http://localhost:8000/vector?w='

@@ -14,7 +14,7 @@ sys.setdefaultencoding('utf-8')
 
 def read_file(file_name):
     word_count_map = {}
-    f = open(sys.argv[1], 'r')
+    f = open(file_name, 'r')
     for lines in f:
         token = lines.strip().decode('utf-8').encode('utf-8').split(' ')
         for tmp in token:

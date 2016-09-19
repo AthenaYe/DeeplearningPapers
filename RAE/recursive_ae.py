@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import tensorflow as tf
 import numpy as np
+import config
 
 
 class RecursiveAutoencoder(object):
@@ -86,6 +87,6 @@ class RecursiveAutoencoder(object):
 #        return self.sess.run(self.weights['b1'])
 
 if __name__ == '__main__':
-    rae = RecursiveAutoencoder(100)
+    rae = RecursiveAutoencoder(config.embedding_size, config.vocab_size)
 
 # vim: ts=4 sw=4 sts=4 expandtab

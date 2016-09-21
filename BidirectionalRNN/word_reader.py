@@ -18,10 +18,17 @@ class WordReader:
         sys.setdefaultencoding('utf-8')
         self.file_name = file_name
         f = open(file_name, 'r')
-        index_count = 1
+        index_count = 3
         self.word_dict['UNK'] = np.array(np.random.uniform(-0.01, 0.01, config.embedding_size),
                                          dtype='float32')
-        self.word_index['UNK'] = 0
+        self.word_dict['EOS'] = np.array(np.random.uniform(-0.01, 0.01, config.embedding_size),
+                                         dtype='float32')
+        self.word_dict['PAD'] = np.zeros(config.embedding_size, dtype='float32')
+        self.word_index['PAD'] = 0
+        self.word_index['EOS'] = 1
+        self.word_index['UNK'] = 2
+        self.word_vectors.append(self.word_dict['PAD'])
+        self.word_vectors.append(self.word_dict['EOS'])
         self.word_vectors.append(self.word_dict['UNK'])
         for lines in f:
             if config.chinese == False:
@@ -52,17 +59,24 @@ class WordReader:
                         self.word_vectors.append(vec)
                         self.word_dict[tmp] = vec
                         index_count += 1
-            for tmp in new_entry.query:
-                new_entry.q_list.append(self.word_index[tmp])
-            for tmp in new_entry.question:
-                new_entry.c_list.append(self.word_index[tmp])
+            for i in range(0, len(new_entry.query)):
+                new_entry.q_list[i] = self.word_index[new_entry.query[i]]
+            new_entry.q_list[len(new_entry.query)] = self.word_index['EOS']
+            for i in range(0, len(new_entry.question)):
+                new_entry.c_list[i] = self.word_index[new_entry.question[i]]
+            new_entry.c_list[len(new_entry.question)] = self.word_index['EOS']
             self.corpus_set.append(new_entry)
         self.word_vectors = np.array(self.word_vectors)
         f.close()
         return
 
     def read_word_vec(self, word):
-        return self.getter(config.link + word)
+    #   return np.zeros(config.embedding_size, dtype='float32'), 1
+        vec, res = self.getter(config.link + word)
+        if res == 1:
+            vec = map(float, vec.split(" "))
+            vec = np.array(vec, dtype='float32')
+        return vec, res
 
     def getter(self, link):
         def _getter(link):

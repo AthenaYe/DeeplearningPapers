@@ -12,8 +12,8 @@ class OutputModel:
         # initializer = tf.constant_initializer(value=wr.word_vectors, dtype=tf.float32)
         # self.word_dict = tf.get_variable('word_dict', shape=[len(wr.word_vectors), config.embedding_size],
         #                                  initializer=initializer, trainable=config.trainable)
-        self.word_dict = tf.Variable(initializer=tf.constant(wr.word_vectors),
-                                     shape = None, trainable=config.trainable)
+        self.word_dict = tf.get_variable('shabi', shape=None, dtype=tf.float32,
+                                         initializer=tf.constant(wr.word_vectors))
         # paraphrase sentences
         self.x1_index = tf.placeholder(tf.int32, [None, config.max_sentence_len])
         self.x1 = tf.nn.embedding_lookup(self.word_dict, self.x1_index)
@@ -33,7 +33,7 @@ class OutputModel:
         # Split to get a list of 'n_steps' tensors of shape (batch_size, n_input)
         self.x2 = tf.split(0, config.max_sentence_len, self.x2)
         # output label
-        self.y = tf.placeholder("float", [None, config.classes])
+        self.y = tf.placeholder("int32", [None])
 
         # Forward direction cell
         lstm_fw_cell_x1 = rnn_cell.LSTMCell(config.hidden_size, forget_bias=1.0, state_is_tuple=True)
@@ -53,7 +53,8 @@ class OutputModel:
                                                 dtype=tf.float32))
         mid = tf.matmul(outputs, self.weights)
         self.results = tf.nn.softmax(mid)
-        self.cost = tf.nn.sparse_softmax_cross_entropy_with_logits(self.results, self.y)
+        self.cost = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
+                                    self.results, self.y))
         vars = tf.trainable_variables()
         optimizer=tf.train.AdamOptimizer()
         self.optimizer = optimizer.minimize(self.cost, var_list=vars)
@@ -63,20 +64,19 @@ class OutputModel:
         return
 
     def train(self, q, c, label):
-        cost, opt = self.sess.run((self.cost, self.optimizer),
-                                  feed_dict={self.x1_index: q, self.x2_index: c, self.y : label})
+        cost, _ = self.sess.run((self.cost, self.optimizer),
+                             feed_dict={self.x1_index: q, self.x2_index: c, self.y : label})
         return cost
 
     def cal_cost(self, q, c, label):
         cost = self.sess.run((self.cost, self.optimizer),
                              feed_dict={self.x1_index: q, self.x2_index: c, self.y : label})
-        return cost
+        return tf.reduce_sum(cost)
 
     def predict(self, q, c):
         pred = self.sess.run(self.results,
                              feed_dict={self.x1_index: q, self.x2_index: c})
-        x_max = tf.reduce_max(pred, reduction_indices=[0])
-        return x_max
+        return np.argmax(np.array(pred), axis=1)
 
     def train_and_test(self, fold_cut, batch_size):
         train = self.word_reader.corpus_set[:fold_cut]
@@ -87,16 +87,17 @@ class OutputModel:
         batch_count = 0
         cost = 0
         for i in range(0, fold_cut):
-            if batch_count == batch_size:
-                cost += self.train(x1, x2, y)
-                x1 = []
-                x2 = []
-                y = []
-                continue
             batch_count += 1
             x1.append(train[i].q_list)
             x2.append(train[i].c_list)
             y.append(train[i].label)
+            if batch_count == batch_size or i == fold_cut-1:
+                cost += self.train(x1, x2, y)
+                x1 = []
+                x2 = []
+                y = []
+                batch_count = 0
+                continue
         right_count = 0
         for i in range(0, len(test)):
             x1 = []
@@ -104,7 +105,7 @@ class OutputModel:
             x2 = []
             x2.append(test[i].c_list)
             ans = self.predict(x1, x2)
-            if abs(ans-test[i].label) < 1e-6:
+            if abs(ans[0]-test[i].label) < 1e-6:
                 right_count += 1
         return right_count * 1.0 / len(test), cost
 
@@ -116,10 +117,11 @@ if __name__ == '__main__':
     # read pretraining file
     if len(sys.argv) >= 3 and config.pre_train == True:
         wr.read_file(sys.argv[2])
-    wr.corpus_set = random.shuffle(wr.corpus_set)
+    random.shuffle(wr.corpus_set)
     model = OutputModel()
     model.init(wr)
     for i in range(0, config.epoch):
         acc, cost = model.train_and_test(config.fold_cut, config.batch_size)
         print "round: " + str(i)
         print "accuracy: " + str(acc)
+        print "cost: " + str(cost)

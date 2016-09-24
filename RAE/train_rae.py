@@ -42,7 +42,9 @@ for lines in f:
             batch_count += 1
             if batch_count != 0 and batch_count % config.batch_size == 0:
                 batch_count = 0
+                weights = model.see_weights()
                 model.partial_fit(x1, x2, x3)
+                weights = model.see_weights()
                 x1 = []
                 x2 = []
                 x3 = []

@@ -7,13 +7,14 @@ import random
 from tensorflow.python.ops import rnn, rnn_cell
 
 class OutputModel:
-    def init(self, wr):
+    def init_all(self, wr):
         self.word_reader = wr
         # initializer = tf.constant_initializer(value=wr.word_vectors, dtype=tf.float32)
         # self.word_dict = tf.get_variable('word_dict', shape=[len(wr.word_vectors), config.embedding_size],
         #                                  initializer=initializer, trainable=config.trainable)
-        self.word_dict = tf.get_variable('shabi', shape=None, dtype=tf.float32,
-                                         initializer=tf.constant(wr.word_vectors))
+        self.word_dict = tf.get_variable('haha', shape=None, dtype=tf.float32,
+                                         initializer=tf.constant(wr.word_vectors),
+                                         trainable=False)
         # paraphrase sentences
         self.x1_index = tf.placeholder(tf.int32, [None, config.max_sentence_len])
         self.x1 = tf.nn.embedding_lookup(self.word_dict, self.x1_index)
@@ -32,8 +33,7 @@ class OutputModel:
         self.x2 = tf.reshape(self.x2, [-1, config.embedding_size])
         # Split to get a list of 'n_steps' tensors of shape (batch_size, n_input)
         self.x2 = tf.split(0, config.max_sentence_len, self.x2)
-        # output label
-        self.y = tf.placeholder("int32", [None])
+        self.y = tf.placeholder("int64", [None])
 
         # Forward direction cell
         lstm_fw_cell_x1 = rnn_cell.LSTMCell(config.hidden_size, forget_bias=1.0, state_is_tuple=True)
@@ -51,21 +51,27 @@ class OutputModel:
         outputs = tf.concat(1, [outputs_x1[-1], outputs_x2[-1]])
         self.weights = tf.Variable(tf.random_uniform([config.hidden_size * 4, config.classes],
                                                 dtype=tf.float32))
-        mid = tf.matmul(outputs, self.weights)
+        # self.weights = tf.Variable(tf.random_uniform([config.embedding_size * 2, config.classes],
+        #                                         dtype=tf.float32))
+        self.b = tf.Variable(tf.random_uniform([config.classes]), dtype=tf.float32)
+        mid = tf.matmul(outputs, self.weights) + self.b
         self.results = tf.nn.softmax(mid)
-        self.cost = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                                    self.results, self.y))
-        vars = tf.trainable_variables()
-        optimizer=tf.train.AdamOptimizer()
-        self.optimizer = optimizer.minimize(self.cost, var_list=vars)
+        self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(self.results, self.y)
+        self.cost = tf.reduce_sum(self.loss)
+
         init = tf.initialize_all_variables()
+        vars = tf.trainable_variables()
+        opt=tf.train.GradientDescentOptimizer(learning_rate=config.learning_rate)
+        self.optimizer = opt.minimize(self.cost, var_list=vars)
         self.sess = tf.Session()
         self.sess.run(init)
         return
 
     def train(self, q, c, label):
-        cost, _ = self.sess.run((self.cost, self.optimizer),
-                             feed_dict={self.x1_index: q, self.x2_index: c, self.y : label})
+        self.sess.run(self.optimizer,
+                      feed_dict={self.x1_index: q, self.x2_index: c, self.y : label})
+        cost = self.sess.run(self.cost,
+                      feed_dict={self.x1_index: q, self.x2_index: c, self.y : label})
         return cost
 
     def cal_cost(self, q, c, label):
@@ -77,7 +83,8 @@ class OutputModel:
         pred = self.sess.run(self.results,
                              feed_dict={self.x1_index: q, self.x2_index: c})
         return np.argmax(np.array(pred), axis=1)
-
+    def get_weight(self):
+        return self.sess.run(self.weights)
     def train_and_test(self, fold_cut, batch_size):
         train = self.word_reader.corpus_set[:fold_cut]
         test = self.word_reader.corpus_set[fold_cut:]
@@ -92,7 +99,10 @@ class OutputModel:
             x2.append(train[i].c_list)
             y.append(train[i].label)
             if batch_count == batch_size or i == fold_cut-1:
-                cost += self.train(x1, x2, y)
+                see_weights = self.get_weight()
+                cost_tmp = self.train(x1, x2, y)
+                see_weights = self.get_weight()
+                cost += cost_tmp
                 x1 = []
                 x2 = []
                 y = []
@@ -119,7 +129,7 @@ if __name__ == '__main__':
         wr.read_file(sys.argv[2])
     random.shuffle(wr.corpus_set)
     model = OutputModel()
-    model.init(wr)
+    model.init_all(wr)
     for i in range(0, config.epoch):
         acc, cost = model.train_and_test(config.fold_cut, config.batch_size)
         print "round: " + str(i)

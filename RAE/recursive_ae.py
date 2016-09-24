@@ -72,6 +72,9 @@ class RecursiveAutoencoder(object):
     def ret_dict(self):
         return self.sess.run((self.word_embedding_dict, self.weights['w1']))
 
+    def see_weights(self):
+        return self.sess.run(self.weights['w1'])
+
 #    def generate(self, hidden=None):
 #        if hidden is None:
 #            hidden = np.random.normal(size=self.weights["b1"])
